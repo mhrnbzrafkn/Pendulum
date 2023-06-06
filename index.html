@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        :root {
+            --pendulumCanvas-width: 400;
+            --pendulumCanvas-height: 400;
+        }
+
+        body {
+            background-color: #515151;
+        }
+
+        canvas {
+            margin: auto;
+            border: 1px solid #000;
+        }
+
+        #workSpace {
+            display: flex;
+        }
+
+        #header {
+            display: flex;
+        }
+
+        #header input {
+            margin: auto;
+        }
+
+        #myRange {
+            width: 420px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="header">
+        <input type="range" min="-200" max="200" value="0" class="slider" id="myRange" oninput="updateOrigin()">
+    </div>
+    <div id="workSpace">
+        <canvas id="pendulumCanvas" width="800" height="800"></canvas>
+    </div>
+    <button onclick="initialAgain()" style="height: 25px;">Restart</button>
+</body>
+
+</html>
+
+<script>
+    // Origin point location
+    let OriginX = 4;
+    let OriginY = 0.2;
+
+    // Initial angle in degree
+    let Teta_Degree = 60;
+    let Teta_Radians = degreesToRadians(Teta_Degree);
+
+    // Length of pendulum rod
+    let Length = 1;
+    // Mass of bob
+    let Mass = 0.25;
+
+    // Environment settings
+    let Gravity = 9.81;
+    let Air_Resistance = 0.1;
+    let Omega_Velocity = 0;
+    let aAcceleration = 0;
+
+
+    // Initial first position of pendulum
+    // let bobX = (Length * Math.sin(teta_Radians)) + originX;
+    // let bobY = (Length * Math.cos(teta_Radians)) + originY;
+    let [bobX, bobY] = calculateBobPosition(Length, Teta_Radians, [OriginX, OriginY]);
+
+    // Get the canvas element and its context
+    let main_Canvas = document.getElementById("pendulumCanvas");
+    let main_Ctx = main_Canvas.getContext("2d");
+
+    function drawCircle(ctx, bobX_m, bobY_m, radius_m = 0.2) {
+        let radius_Pixel = meterToPixel(radius_m);
+        let bobx = meterToPixel(bobX_m);
+        let boby = meterToPixel(bobY_m);
+
+        ctx.beginPath();
+        ctx.arc(bobx, boby, radius_Pixel, 0, Math.PI * 2, true);
+        ctx.fill();
+    }
+
+    function drawRod(ctx, startX_m, startY_m, endX_m, endY_m) {
+        let startX = meterToPixel(startX_m);
+        let startY = meterToPixel(startY_m);
+
+        let endX = meterToPixel(endX_m);
+        let endY = meterToPixel(endY_m);
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.closePath();
+        ctx.stroke();
+    }
+
+    function degreesToRadians(degrees) {
+        let radians = degrees * (Math.PI / 180);
+        return radians;
+    }
+
+    function radiansToDegrees(radians) {
+        let degrees = (radians * 180) / Math.PI;
+
+        return degrees;
+    }
+
+    function meterToPixel(value) {
+        let pixels = value * 100
+        return pixels;
+    }
+
+    function pixelToMeter(value) {
+        let meter = value / 100;
+        return meter;
+    }
+
+    function calculateBobPosition(length, teta_Radians, originX, originY) {
+
+        let bobX = (length * Math.sin(teta_Radians)) + originX;
+        let bobY = (length * Math.cos(teta_Radians)) + originY;
+
+        return [bobX, bobY];
+    }
+
+    function calculateAlpha(gravity, length, teta, air_Resistance, mass, omega) {
+        let alpha = -((gravity / length) * Math.sin(teta)) - ((air_Resistance / mass) * omega);
+
+        return alpha;
+    }
+
+    let animationIndex = 0;
+    function updatePendulum() {
+        // Clear the canvas
+        main_Ctx.clearRect(0, 0, main_Canvas.width, main_Canvas.height);
+
+        [bobX, bobY] = calculateBobPosition(Length, Teta_Radians, OriginX, OriginY);
+        drawCircle(main_Ctx, bobX, bobY, 0.2);
+        drawRod(main_Ctx, OriginX, OriginY, bobX, bobY);
+        drawCircle(main_Ctx, OriginX, OriginY, 0.05);
+
+
+        let alpha = calculateAlpha(Gravity, Length, Teta_Radians, Air_Resistance, Mass, Omega_Velocity);
+        let ratio = 0.02;
+        Omega_Velocity += alpha * ratio;
+        Teta_Radians += Omega_Velocity * ratio;
+
+        // Call the update function on the next frame
+        requestAnimationFrame(updatePendulum);
+    }
+
+    updatePendulum();
+
+    let range = document.getElementById("myRange");
+    let previousPosition = pixelToMeter(parseInt(range.value) + 400);
+    let previousTime = Date.now();
+    function updateOrigin() {
+        let currentPosition = pixelToMeter(parseInt(range.value) + 400);
+        let currentTime = Date.now();
+        
+        let delta = currentPosition - previousPosition;
+        let t = (currentTime - previousTime) / 1000;
+        let v = delta / t;
+        
+        let E = (Mass * (v ** 2)) / 2;
+        if (v < 0) {
+            E = -(Mass * (v ** 2)) / 2;
+        }
+        console.log(E);
+
+        previousPosition = currentPosition;
+        previousTime = currentTime;
+
+        OriginX = currentPosition;
+    }
+
+    function initialAgain() {
+        Teta_Radians = degreesToRadians(Teta_Degree);
+    }
+
+</script>
